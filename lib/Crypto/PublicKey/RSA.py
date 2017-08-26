@@ -590,9 +590,9 @@ def construct(rsa_components, consistency_check=True):
             if p * q != n:
                 raise ValueError("RSA factors do not match modulus")
             if test_probable_prime(p) == COMPOSITE:
-                raise ValueError("RSA factor p is composite")
+                raise ValueError("RSA factor p (%d) is composite (n=%d)" % (int(p), int(n)))
             if test_probable_prime(q) == COMPOSITE:
-                raise ValueError("RSA factor q is composite")
+                raise ValueError("RSA factor q (%d) is composite (n=%d)" % (int(q), int(n)))
             # See Carmichael theorem
             phi = (p - 1) * (q - 1)
             lcm = phi // (p - 1).gcd(q - 1)
