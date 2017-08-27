@@ -258,8 +258,10 @@ def test_probable_prime(candidate, randfunc=None):
 
     if miller_rabin_test(candidate, mr_iterations,
                          randfunc=randfunc) == COMPOSITE:
+        print "MillerRabin test failed"
         return COMPOSITE
     if lucas_test(candidate) == COMPOSITE:
+        print "Lucas test failed"
         return COMPOSITE
     return PROBABLY_PRIME
 
