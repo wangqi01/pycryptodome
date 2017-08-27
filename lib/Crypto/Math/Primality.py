@@ -130,6 +130,7 @@ def lucas_test(candidate):
 
     # Step 1
     if candidate.is_even() or candidate.is_perfect_square():
+        print "Lucas test: even or square"
         return COMPOSITE
 
     # Step 2
@@ -143,10 +144,12 @@ def lucas_test(candidate):
     for D in alternate():
         js = Integer.jacobi_symbol(D, candidate)
         if js == 0:
+            print "Lucas test: zero jacobi"
             return COMPOSITE
         if js == -1:
             break
     else:
+        print "Lucas test: unknown D"
         return COMPOSITE
     # Found D. P=1 and Q=(1-D)/4 (note that Q is guaranteed to be an integer)
 
@@ -198,6 +201,7 @@ def lucas_test(candidate):
             V_i.set(V_temp)
     # Step 7
     if U_i == 0:
+        print "Lucas test: zero U_i"
         return PROBABLY_PRIME
     return COMPOSITE
 
