@@ -6,7 +6,14 @@ environment:
     # See: http://stackoverflow.com/a/13751649/163740
     WITH_COMPILER: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
 
+
+
   matrix:
+    - PYTHON: "C:\\Python33-x64"
+      PYTHON_VERSION: "3.3.5"
+      PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: "v7.1"
+
     - PYTHON: "C:\\Python27"
       PYTHON_VERSION: "2.7.8"
       PYTHON_ARCH: "32"
@@ -23,11 +30,6 @@ environment:
       PYTHON_VERSION: "2.7.8"
       PYTHON_ARCH: "64"
       WINDOWS_SDK_VERSION: "v7.0"
-
-    - PYTHON: "C:\\Python33-x64"
-      PYTHON_VERSION: "3.3.5"
-      PYTHON_ARCH: "64"
-      WINDOWS_SDK_VERSION: "v7.1"
 
     - PYTHON: "C:\\Python34-x64"
       PYTHON_VERSION: "3.4.1"
