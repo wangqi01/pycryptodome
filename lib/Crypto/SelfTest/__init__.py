@@ -78,15 +78,7 @@ def run(module=None, verbosity=0, stream=None, tests=None, config=None, **kwargs
 
 def get_tests(config={}):
     tests = []
-    from Crypto.SelfTest import Cipher; tests += Cipher.get_tests(config=config)
-    from Crypto.SelfTest import Hash;   tests += Hash.get_tests(config=config)
-    from Crypto.SelfTest import Protocol; tests += Protocol.get_tests(config=config)
-    from Crypto.SelfTest import PublicKey; tests += PublicKey.get_tests(config=config)
-    from Crypto.SelfTest import Random; tests += Random.get_tests(config=config)
-    from Crypto.SelfTest import Util;   tests += Util.get_tests(config=config)
     from Crypto.SelfTest import Signature;   tests += Signature.get_tests(config=config)
-    from Crypto.SelfTest import IO;   tests += IO.get_tests(config=config)
-    from Crypto.SelfTest import Math;   tests += Math.get_tests(config=config)
     return tests
 
 if __name__ == '__main__':
