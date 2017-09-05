@@ -606,5 +606,31 @@ setup(
             include_dirs=['src/'],
             sources=['src/strxor.c']),
 
+        # BearSSL
+        Extension("Crypto.Util._bearssl",
+            include_dirs=['src/bearssl/inc', 'src/bearssl/src'],
+            sources=['src/bearssl/src/int/i31_add.c',
+                     'src/bearssl/src/int/i31_bitlen.c',
+                     'src/bearssl/src/int/i31_decmod.c',
+                     'src/bearssl/src/int/i31_decode.c',
+                     'src/bearssl/src/int/i31_decred.c',
+                     'src/bearssl/src/int/i31_encode.c',
+                     'src/bearssl/src/int/i31_fmont.c',
+                     'src/bearssl/src/int/i31_iszero.c',
+                     'src/bearssl/src/int/i31_modpow2.c',
+                     'src/bearssl/src/int/i31_modpow.c',
+                     'src/bearssl/src/int/i31_montmul.c',
+                     'src/bearssl/src/int/i31_mulacc.c',
+                     'src/bearssl/src/int/i31_muladd.c',
+                     'src/bearssl/src/int/i31_ninv31.c',
+                     'src/bearssl/src/int/i31_reduce.c',
+                     'src/bearssl/src/int/i31_rshift.c',
+                     'src/bearssl/src/int/i31_sub.c',
+                     'src/bearssl/src/int/i31_tmont.c',
+
+                     'src/bearssl/src/codec/ccopy.c',
+                     'src/bearssl/src/int/i32_div32.c',
+                ]),
+
         ]
 )
