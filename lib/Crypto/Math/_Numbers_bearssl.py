@@ -119,7 +119,7 @@ class Integer(object):
 
         self = cls.__new__(cls)
         self._i31 = ffi.new("uint32_t[]", _MAX_NR_WORDS)
-        _raw_bearssl.br_i31_decode(self._i31, byte_string, len(byte_string`))
+        _raw_bearssl.br_i31_decode(self._i31, byte_string, len(byte_string))
         return self
 
     # Relations

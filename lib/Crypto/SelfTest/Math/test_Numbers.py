@@ -673,6 +673,21 @@ def get_tests(config={}):
     except (ImportError, OSError), e:
         import sys
         sys.stdout.write("Skipping GMP tests (%s)\n" % str(e) )
+
+    try:
+        from Crypto.Math import _Numbers_bearssl as NumbersBearSSL
+
+        class TestIntegerBearSSL(TestIntegerBase):
+            def setUp(self):
+                self.Numbers = NumbersBearSSL
+                self.Integer = NumbersBearSSL.Integer
+                TestIntegerBase.setUp(self)
+
+        tests += list_test_cases(TestIntegerBearSSL)
+    except (ImportError, OSError), e:
+        import sys
+        sys.stdout.write("Skipping BearSSL tests (%s)\n" % str(e) )
+
     tests += list_test_cases(TestIntegerGeneric)
     return tests
 
