@@ -7,11 +7,52 @@ from Crypto.Util.number import long_to_bytes, bytes_to_long
 # For now, only support CFFI, not ctypes
 from Crypto.Util._raw_api import ffi
 
+# With i31, the number is represented with 31-bit limbs via an array of 32-bit words.
+#
+# The first word of the array is the "announced bit length" (i.e. the # of meaningful bits):
+# - the upper 27 bits are the numer of full limbs
+# - the lower 5 bits are the residual bits in the last limb - if 0 there is no last limb
+#
+# <ann_bit_len> <limb_0> <lim_1> ... <lim_N> [<lim_N+1>]
+#
+# Example of total array size for:
+# - a 0 bit number:     1 word
+# - a 1 bit number:     2 words
+# - a 32 bit number:    2 words
+# - a 33 bit number:    3 words
+#
+# For an array X, the idiom (X[0] + 31) >> 5 is used to compute the number of limbs.
+# (X[0] + 63) >> 5 counts one word more.
+# The total array length is clearly (X[0] + 31) >> 5 + 1.
+
+_MAX_BITSIZE = 4096
+_MAX_SIZE = 1 << _MAX_BITSIZE - 1
+_MAX_NR_WORDS = _MAX_BITSIZE // 31 + 2
+_MAX_BYTESIZE = _MAX_BITSIZE // 8 + 1
+
 _bearssl_defs = """
+/** Return 1 if zero, 0 if non-zero **/
 uint32_t br_i31_iszero(const uint32_t *x);
+
+/**
+  Add up two numbers a[] and b[]. They MUST have the same number of limbs.
+  If ctl is 1, a[] is updated with the result. If 1, a[] is left unmodified.
+  Return 1 if there is overflow, 0 otherwise.
+**/
 uint32_t br_i31_add(uint32_t *a, const uint32_t *b, uint32_t ctl);
+
+/**
+  Subtract b[] from a[]. They MUST have the same number of limbs.
+  If ctl is 1, a[] is updated with the result. If 1, a[] is left unmodified.
+  Return 1 if there is an underflow, 0 otherwise.
+**/
 uint32_t br_i31_sub(uint32_t *a, const uint32_t *b, uint32_t ctl);
+
+/**
+  Return the effective bit length of xlen limbs pointed to by x.
+**/
 uint32_t br_i31_bit_length(uint32_t *x, size_t xlen);
+
 void br_i31_decode(uint32_t *x, const void *src, size_t len);
 uint32_t br_i31_decode_mod(uint32_t *x,
 	const void *src, size_t len, const uint32_t *m);
@@ -34,28 +75,6 @@ void br_i31_mulacc(uint32_t *d, const uint32_t *a, const uint32_t *b);
 """
 
 _raw_bearssl = load_pycryptodome_raw_lib("Crypto.Util._bearssl", _bearssl_defs)
-
-# With i31, the number is represented with 31-bit limbs via an array of 32-bit words.
-#
-#
-#
-# The first word of the array is the "announced bit length" (i.e. the # of meaningful bits):
-# - the upper 27 bits are the numer of full limbs
-# - the lower 5 bits are the residual bits in the last limb - if 0 there is no last limb
-#
-# Example of total array size for:
-# - a 0 bit number:     1 word
-# - a 1 bit number:     2 words
-# - a 32 bit number:    2 words
-# - a 33 bit number:    3 words
-#
-# For an array X, the idiom (X[0] + 31) >> 5 is used to compute the number of limbs.
-# The total array length is clearly (X[0] + 31) >> 5 + 1.
-
-_MAX_BITSIZE = 4096
-_MAX_SIZE = 1 << _MAX_BITSIZE - 1
-_MAX_NR_WORDS = _MAX_BITSIZE // 31 + 2
-_MAX_BYTESIZE = _MAX_BITSIZE // 8 + 1
 
 class Integer(object):
 
@@ -242,7 +261,7 @@ class Integer(object):
         if self._i31[0] == 0:
             return 1
         limbs = (self._i31[0] >> 5) + 1
-        res = _raw_bearssl.br_i31_bit_length(self.i31 + 1, limbs)
+        res = _raw_bearssl.br_i31_bit_length(self._i31 + 1, limbs)
         return res
 
     def size_in_bytes(self):
