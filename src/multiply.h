@@ -53,29 +53,44 @@ uint64_t static inline dp_mult_128_32(uint64_t a, uint64_t b, uint64_t *oh)
 
 #else
 
+#if defined(_MSC_VER)
+#include <intrin.h>
+#else
 #include <x86intrin.h>
-#pragma GCC target "sse4.1"
+#pragma GCC target("sse2")
+#endif
+
 uint64_t static inline dp_mult_128_32(uint64_t x, uint64_t y, uint64_t *oh)
 {
+    __m128i r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13;
     uint64_t lo;
 
-    __m128i r0 = _mm_set1_epi32((uint32_t)(x >> 32));                           // { xH, xH, xH, xH }
-    __m128i r1 = _mm_set1_epi32((uint32_t)x);                                   // { xL, xL, xL, xL }
-    __m128i r2 = _mm_shuffle_epi32(_mm_cvtsi64_si128(y), _MM_SHUFFLE(2,1,2,0)); // { 0,  yH, 0,  yL }
-    __m128i r3 = _mm_mul_epu32(r0, r2);
-    __m128i r4 = _mm_mul_epu32(r1, r2);
-    lo = (uint32_t) _mm_extract_epi32(r4, 0);      // lowest 32-bit word (TODO: replace with 2x _mm_extract_epi16)
-    __m128i r5 = _mm_unpackhi_epi64(r4, _mm_setzero_si128());
-    __m128i r6 = _mm_shuffle_epi32(r5, _MM_SHUFFLE(3,1,3,0));  // { 0, H(xL*yH), 0, L(xL*yH) }
-    __m128i r7 = _mm_add_epi64(r3, r6); // Step i
-    __m128i r8 = _mm_move_epi64(r4);
-    __m128i r9 = _mm_shuffle_epi32(r8, _MM_SHUFFLE(3,3,3,1));  // { 0, 0, 0, H(xL*yL) }
-    __m128i r10 = _mm_add_epi64(r7, r9); // Step ii
-    lo += ((uint64_t)_mm_extract_epi32(r10, 0)) << 32;      // lowest 32-bit word 
-    __m128i r11 = _mm_move_epi64(r10);
-    __m128i r12 = _mm_shuffle_epi32(r11, _MM_SHUFFLE(3,1,3,3));  // { 0, H, 0, 0 }
-    __m128i r13 = _mm_add_epi64(r10, r12); // Step iii
+    r0 = _mm_set1_epi32((uint32_t)(x >> 32));                           // { xH, xH, xH, xH }
+    r1 = _mm_set1_epi32((uint32_t)x);                                   // { xL, xL, xL, xL }
+    r2 = _mm_shuffle_epi32(_mm_cvtsi64_si128(y), _MM_SHUFFLE(2,1,2,0)); // { 0,  yH, 0,  yL }
+    r3 = _mm_mul_epu32(r0, r2);                         // { xH*yH, xH*yL }
+    r4 = _mm_mul_epu32(r1, r2);                         // { xL*yH, xL*yL }
+    r5 = _mm_unpackhi_epi64(r4, _mm_setzero_si128());   // { xL*yH, 0 }
+    r6 = _mm_shuffle_epi32(r5, _MM_SHUFFLE(3,1,3,0));   // { 0, H(xL*yH), 0, L(xL*yH) }
+    r7 = _mm_add_epi64(r3, r6); // Step i
+    r8 = _mm_move_epi64(r4);                            // { 0, xL*yL }
+    r9 = _mm_shuffle_epi32(r8, _MM_SHUFFLE(3,3,3,1));   // { 0, 0, 0, H(xL*yL) }
+    r10 = _mm_add_epi64(r7, r9); // Step ii
+    r11 = _mm_move_epi64(r10);                          //
+    r12 = _mm_shuffle_epi32(r11, _MM_SHUFFLE(3,1,3,3)); // { 0, H, 0, 0 }
+    r13 = _mm_add_epi64(r10, r12); // Step iii
+
+#if 0
+    lo = (uint32_t) _mm_extract_epi32(r4, 0);
+    lo += ((uint64_t)_mm_extract_epi32(r10, 0)) << 32;
     *oh = _mm_extract_epi64(r13, 1);
+#else
+    lo = (uint64_t)_mm_extract_epi16(r4, 0) |
+         ((uint64_t)_mm_extract_epi16(r4, 1) << 16) |
+         ((uint64_t)_mm_extract_epi16(r10, 0) << 32) |
+         ((uint64_t)_mm_extract_epi16(r10, 1) << 48);
+    _mm_storeh_pi((__m64*)oh, _mm_castsi128_ps(r13));
+#endif
 
     return lo;
 }
