@@ -67,7 +67,11 @@ uint64_t static inline dp_mult_128_32(uint64_t x, uint64_t y, uint64_t *oh)
 
     r0 = _mm_set1_epi32((uint32_t)(x >> 32));                           // { xH, xH, xH, xH }
     r1 = _mm_set1_epi32((uint32_t)x);                                   // { xL, xL, xL, xL }
+#if 0
     r2 = _mm_shuffle_epi32(_mm_cvtsi64_si128(y), _MM_SHUFFLE(2,1,2,0)); // { 0,  yH, 0,  yL }
+#else
+    r2 = _mm_shuffle_epi32(_mm_castpd_si128(_mm_set_sd(*(double*)&y)), _MM_SHUFFLE(2,1,2,0));
+#endif
     r3 = _mm_mul_epu32(r0, r2);                         // { xH*yH, xH*yL }
     r4 = _mm_mul_epu32(r1, r2);                         // { xL*yH, xL*yL }
     r5 = _mm_unpackhi_epi64(r4, _mm_setzero_si128());   // { xL*yH, 0 }
