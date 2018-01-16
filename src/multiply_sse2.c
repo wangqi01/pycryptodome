@@ -60,7 +60,32 @@ DAMAGE.
 
 #endif
 
-#include <inttypes.h>
+#if defined(_MSC_VER) && !defined(_WIN64) && (_MSC_VER<1900)
+
+__m128i static inline _mm_set_epi64x(uint64_t e1, uint64_t e0)
+{
+	union{
+        uint64_t u64;
+        uint32_t u32[2];
+    } u1, u0;
+    u1.u64 = e1;
+    u0.u64 = e0;
+    
+	return _mm_set_epi32(u1.u32[1], u1.u32[0], u0.u32[1], u0.u32[0]);
+}
+
+__m128i static inline _mm_set1_epi64x(uint64_t e0)
+{
+	union{
+        uint64_t u64;
+        uint32_t u32[2];
+    } u1, u0;
+    u1.u64 = e0;
+    u0.u64 = e0;
+    
+	return _mm_set_epi32(u1.u32[1], u1.u32[0], u0.u32[1], u0.u32[0]);
+}
+#endif
 
 void static inline print128(const char *str, __m128i x)
 {
@@ -72,7 +97,7 @@ void static inline print128(const char *str, __m128i x)
     printf("%s: %016lX %016lX\n", str, hi, lo);
 }
 
-int static inline get_carry_bits(__m128i x, __m128i y, __m128i sum, __m128i all_ones)
+int static inline get_carry_bits(__m128i x, __m128i y, __m128i sum, __m128i *all_ones)
 {
     __m128i r0, r1, r2, r3, r4;
     int carries;
@@ -80,7 +105,7 @@ int static inline get_carry_bits(__m128i x, __m128i y, __m128i sum, __m128i all_
     // Carry check can be done efficiently with a 64-bit compare
     // Unfortunately, that requires SSE4.1
 
-    r0 = _mm_xor_si128(sum, all_ones);  // ~sum
+    r0 = _mm_xor_si128(sum, *all_ones);  // ~sum
     r1 = _mm_or_si128(x, y);            // x | y
     r2 = _mm_and_si128(x, y);           // x & y
     r3 = _mm_and_si128(r1, r0);         // (x | y) & ~sum
@@ -168,7 +193,7 @@ uint64_t addmul128(uint64_t * RESTRICT t, const uint64_t * RESTRICT a, uint64_t 
         
         r22 = _mm_add_epi64(r20, sum_ml);  // sum (two 64 bit words)
 
-        carries = get_carry_bits(r20, sum_ml, r22, all_ones);
+        carries = get_carry_bits(r20, sum_ml, r22, &all_ones);
         c1 = carries & 1;
         c2 = carries >> 1;
 
@@ -184,7 +209,7 @@ uint64_t addmul128(uint64_t * RESTRICT t, const uint64_t * RESTRICT a, uint64_t 
 
         r42 = _mm_add_epi64(r40, sum_ml);  // sum (two 64 bit words)
 
-        carries = get_carry_bits(r40, sum_ml, r42, all_ones);
+        carries = get_carry_bits(r40, sum_ml, r42, &all_ones);
         c1 += carries & 1;
         c2 += carries >> 1;
 
@@ -198,7 +223,7 @@ uint64_t addmul128(uint64_t * RESTRICT t, const uint64_t * RESTRICT a, uint64_t 
         r50 = _mm_set_epi64x((uint64_t)c1, t[i]); 
         r52 = _mm_add_epi64(r50, sum_ml);  // sum (two 64 bit words)
 
-        carries = get_carry_bits(r50, sum_ml, r52, all_ones);
+        carries = get_carry_bits(r50, sum_ml, r52, &all_ones);
         c3 = carries & 1;
         c2 += carries >> 1;
     
@@ -213,7 +238,7 @@ uint64_t addmul128(uint64_t * RESTRICT t, const uint64_t * RESTRICT a, uint64_t 
     
         r60 = _mm_set1_epi64x((uint64_t)c3);
         r62 = _mm_add_epi64(r60, sum_ml);  // sum (trash lower half)
-        carries = get_carry_bits(r60, sum_ml, r62, all_ones);
+        carries = get_carry_bits(r60, sum_ml, r62, &all_ones);
         c2 += carries >> 1;
 
         // sum_ml = { c2, H(r62) }
