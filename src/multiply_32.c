@@ -34,12 +34,13 @@ void addmul32(uint32_t* t, const uint32_t *a, uint32_t b, size_t words)
     // assume a[] is 64-bit aligned?
     
     __m128i r0;
+    __m128i r1;
    
     //printf("b = %08X\n", b); 
     r0 = _mm_set1_epi32(b);    // { b, b, b, b }
     //print128("r0", r0);
+    r1 = _mm_cvtsi32_si128(carry);  // { 0, 0, 0, carry }
     for (i=0; i<(words & ~1); i+=2) {
-        __m128i r1;
         __m128i r10, r11, r12, r13, r14, r15, r16, r17;
         uint64_t prod;
         uint32_t prodl, prodh;
@@ -71,7 +72,6 @@ void addmul32(uint32_t* t, const uint32_t *a, uint32_t b, size_t words)
         //printf("t[%d] = %08X\n", i, t[i]); 
         //printf("t[%d] = %08X\n", i+1, t[i+1]); 
 
-        r1 = _mm_cvtsi32_si128(carry);  // { 0, 0, 0, carry }
         //print128("r1", r1);
         
         r10 = _mm_shuffle_epi32(
@@ -102,15 +102,20 @@ void addmul32(uint32_t* t, const uint32_t *a, uint32_t b, size_t words)
         //print128("r16", r16);
         r17 = _mm_shuffle_epi32(r16, _MM_SHUFFLE(2,0,1,3));
                                         // { new t[i+1], new t[i], *, new carry }
-        //print128("r17", r17);
 
         _mm_storeh_pd((double*)&t[i],
                       _mm_castsi128_pd(r17)); // Store upper 64 bit word (also t[i+1])
+
+        //print128("r17", r17);
+        r1 = _mm_castps_si128(_mm_move_ss(
+                _mm_castsi128_ps(r1),
+                _mm_castsi128_ps(r17)
+                ));
+        //print128("new r1", r1);
         
         //printf("new t[%d] = %08X\n", i, t[i]); 
         //printf("new t[%d] = %08X\n", i+1, t[i+1]); 
     
-        carry = _mm_cvtsi128_si32(r17);
         //printf("new carry = %08X, exp = %08X\n", carry, new_carry); 
 
 #if 0
@@ -120,7 +125,9 @@ void addmul32(uint32_t* t, const uint32_t *a, uint32_t b, size_t words)
 #endif
 
         //assert(i<30);
+        //assert(0);
     }
+    carry = _mm_cvtsi128_si32(r1);
 
     //assert(0);
 #endif
