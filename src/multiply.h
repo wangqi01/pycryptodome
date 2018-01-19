@@ -1,10 +1,9 @@
-#undef NDEBUG
 #include "pycrypto_common.h"
 
 /**
  * Double-precision multiplication
  */
-#if defined(HAVE_UINT128) & 0
+#if defined(HAVE_UINT128)
 
 #define DP_MULT(a,b,ol,oh) do { \
     __uint128_t pr;             \
@@ -20,13 +19,6 @@
 
 #else
 
-uint64_t static inline dp_mult_128_32(uint64_t a, uint64_t b, uint64_t *oh)
-#if defined(__GNUC__) && !defined(__clang__)
-__attribute__((optimize("-O3")))
-#endif
-;
-
-#if 0
 uint64_t static inline dp_mult_128_32(uint64_t a, uint64_t b, uint64_t *oh)
 {
     uint32_t al = (uint32_t) a;
@@ -50,44 +42,6 @@ uint64_t static inline dp_mult_128_32(uint64_t a, uint64_t b, uint64_t *oh)
     *oh = (sum3 << 32) + (uint32_t)sum2;
     return (sum1b << 32) + (uint32_t)sum0;
 }
-
-#else
-
-#if defined(_MSC_VER)
-#include <intrin.h>
-#else
-#include <x86intrin.h>
-#pragma GCC target("sse2")
-#endif
-
-uint64_t static inline dp_mult_128_32(uint64_t x, uint64_t y, uint64_t *oh)
-{
-    __m128i r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13;
-    uint64_t lo;
-
-    r0 = _mm_set1_epi32((uint32_t)(x >> 32));                           // { xH, xH, xH, xH }
-    r1 = _mm_set1_epi32((uint32_t)x);                                   // { xL, xL, xL, xL }
-    r2 = _mm_shuffle_epi32(_mm_castpd_si128(_mm_set_sd(*(double*)&y)), _MM_SHUFFLE(2,1,2,0));   // { 0, yH, 0, yL }
-    r3 = _mm_mul_epu32(r0, r2);                         // { xH*yH, xH*yL }
-    r4 = _mm_mul_epu32(r1, r2);                         // { xL*yH, xL*yL }
-    r5 = _mm_unpackhi_epi64(r4, _mm_setzero_si128());   // { xL*yH, 0 }
-    r6 = _mm_shuffle_epi32(r5, _MM_SHUFFLE(3,1,3,0));   // { 0, H(xL*yH), 0, L(xL*yH) }
-    r7 = _mm_add_epi64(r3, r6); // Step i
-    r8 = _mm_move_epi64(r4);                            // { 0, xL*yL }
-    r9 = _mm_shuffle_epi32(r8, _MM_SHUFFLE(3,3,3,1));   // { 0, 0, 0, H(xL*yL) }
-    r10 = _mm_add_epi64(r7, r9); // Step ii
-    r11 = _mm_move_epi64(r10);                          //
-    r12 = _mm_shuffle_epi32(r11, _MM_SHUFFLE(3,1,3,3)); // { 0, H, 0, 0 }
-    r13 = _mm_add_epi64(r10, r12); // Step iii
-
-    _mm_store_ss((float*)&lo, _mm_castsi128_ps(r4));
-    _mm_store_ss((float*)&lo+1, _mm_castsi128_ps(r10));
-    _mm_storeh_pi((__m64*)oh, _mm_castsi128_ps(r13));
-
-    return lo;
-}
-
-#endif
 
 #define DP_MULT(a,b,ol,oh) do { ol = dp_mult_128_32(a,b,&oh); } while (0)
 
