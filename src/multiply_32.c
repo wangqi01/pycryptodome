@@ -34,19 +34,25 @@ int static inline addmul32(uint32_t* t, const uint32_t *a, uint32_t b, size_t wo
                     _mm_set_sd(*(double*)&a[i])
                 ),
              _MM_SHUFFLE(2,1,2,0));     // { 0, a[i+1], 0, a[i] }
+        
         r11 = _mm_mul_epu32(r0,  r10);  // { a[i+1]*b,  a[i]*b  }
+        
         r12 = _mm_shuffle_epi32(
                 _mm_castpd_si128(
                     _mm_set_sd(*(double*)&t[i])
                 ),
              _MM_SHUFFLE(2,1,2,0));     // { 0, t[i+1], 0, t[i] }
         r13 = _mm_add_epi64(r12, r1);   // { t[i+1],  t[i]+carry }
+        
         r14 = _mm_add_epi64(r11, r13);  // { a[i+1]*b+t[i+1],  a[i]*b+t[i]+carry }
+        
         r15 = _mm_shuffle_epi32(
                 _mm_move_epi64(r14),    // { 0, a[i]*b+t[i]+carry }
                 _MM_SHUFFLE(2,1,2,2)
               );                        // { 0, H(a[i]*b+t[i]+carry), 0, 0 }
+        
         r16 = _mm_add_epi64(r14, r15);  // { next_carry, new t[i+1], *, new t[i] }
+        
         r17 = _mm_shuffle_epi32(r16, _MM_SHUFFLE(2,0,1,3));
                                         // { new t[i+1], new t[i], *, new carry }
         
@@ -81,7 +87,6 @@ int static inline addmul32(uint32_t* t, const uint32_t *a, uint32_t b, size_t wo
     return i;
 }
 
-
 uint64_t addmul128(uint64_t * RESTRICT t, const uint64_t * RESTRICT a, uint64_t b0, uint64_t b1, size_t words)
 {
     int res;
@@ -96,6 +101,8 @@ uint64_t addmul128(uint64_t * RESTRICT t, const uint64_t * RESTRICT a, uint64_t 
     b1l = (uint32_t)b1;
     b1h = (uint32_t)(b1 >> 32);
 
+    // TODO: make it work for BE too
+
     addmul32((uint32_t*)t+0, (uint32_t*)a, b0l, 2*words);
     addmul32((uint32_t*)t+1, (uint32_t*)a, b0h, 2*words);
     addmul32((uint32_t*)t+2, (uint32_t*)a, b1l, 2*words);
@@ -104,36 +111,39 @@ uint64_t addmul128(uint64_t * RESTRICT t, const uint64_t * RESTRICT a, uint64_t 
     return (res+1)/2;
 }
 
-size_t square_w(uint64_t *t, const uint64_t *a, size_t words)
+size_t square_w_32(uint32_t *t, const uint32_t *a, size_t words)
 {
     size_t i, j;
-    uint64_t carry;
+    uint32_t carry;
 
     if (words == 0) {
         return 0;
     }
 
-    memset(t, 0, 2*sizeof(uint64_t)*words);
+    memset(t, 0, 2*sizeof(t[0])*words);
 
     /** Compute all mix-products without doubling **/
     for (i=0; i<words; i++) {
         carry = 0;
         
         for (j=i+1; j<words; j++) {
-            uint64_t sum_lo, sum_hi;
+            uint64_t prod;
+            uint32_t suml, sumh;
 
-            DP_MULT(a[j], a[i], sum_lo, sum_hi);
+            prod = (uint64_t)a[j]*a[i];
+            suml = (uint32_t)prod;
+            sumh = (uint32_t)(prod >> 32);
 
-            sum_lo += carry;
-            sum_hi += sum_lo < carry;
-
-            t[i+j] += sum_lo;
-            carry = sum_hi + (t[i+j] < sum_lo);
+            suml += carry;
+            sumh += suml < carry;
+            
+            t[i+j] += suml;
+            carry = sumh + (t[i+j] < suml);
         }
 
         /** Propagate carry **/
         for (j=i+words; carry>0; j++) {
-            t[j] += (uint64_t)carry;
+            t[j] += carry;
             carry = t[j] < carry;
         }
     }
@@ -141,25 +151,33 @@ size_t square_w(uint64_t *t, const uint64_t *a, size_t words)
     /** Double mix-products and add squares **/
     carry = 0;
     for (i=0, j=0; i<words; i++, j+=2) {
-        uint64_t sum_lo, sum_hi, tmp, tmp2;
+        uint64_t prod;
+        uint32_t suml, sumh, tmp, tmp2;
 
-        DP_MULT(a[i], a[i], sum_lo, sum_hi);
+        prod = (uint64_t)a[i]*a[i];
+        suml = (uint32_t)prod;
+        sumh = (uint32_t)(prod >> 32);
 
-        sum_lo += carry;
-        sum_hi += sum_lo < carry;
+        suml += carry;
+        sumh += suml < carry;
 
-        sum_hi += (tmp = ((t[j+1] << 1) + (t[j] >> 63)));
-        carry = (t[j+1] >> 63) + (sum_hi < tmp);
+        sumh += (tmp = ((t[j+1] << 1) + (t[j] >> 31)));
+        carry = (t[j+1] >> 31) + (sumh < tmp);
 
-        sum_lo += (tmp = (t[j] << 1));
-        sum_hi += (tmp2 = (sum_lo < tmp));
-        carry += sum_hi < tmp2;
+        suml += (tmp = (t[j] << 1));
+        sumh += (tmp2 = (suml < tmp));
+        carry += sumh < tmp2;
  
-        t[j] = sum_lo;
-        t[j+1] = sum_hi;
+        t[j] = suml;
+        t[j+1] = sumh;
     }
     assert(carry == 0);
 
     return 2*words;
 }
 
+size_t square_w(uint64_t *t, const uint64_t *a, size_t words)
+{
+    // TODO: make it work for BE too
+    return square_w_32((uint32_t*)t, (const uint32_t*)a, words*2)/2;
+}
